@@ -60,7 +60,7 @@ void Gameboy::run()
 		DMA.work();
 		GPU_Timing.work();
 		Sound.work();
-		Sound.soundGenerator->fill();
+		Sound.soundGenerator.fill();
 		Timer.work();
 		Serial.work();
 
@@ -128,7 +128,7 @@ void Gameboy::create_savestate()
 	if (CPU.FIQ_disable) cpu_mixed |= 1 << 11;
 	savestate[index++] = cpu_mixed;
 
-	savestate[index++] = IRP.IRP_Flags;// | (uint)((gpio.gpioData.bits & 0x3F) << 16);
+	savestate[index++] = IRP.IRP_Flags | (uint)((gpio.bits & 0x3F) << 16);
 
 	UInt32 eeprom_mix = 0;
 	for (int i = 0; i < 8; i++)
@@ -188,14 +188,14 @@ void Gameboy::create_savestate()
 	if (GBRegs.Sect_display.DISPSTAT_V_Blank_flag.read() == 1) gpumix |= 1 << 24;
 	savestate[index++] = gpumix;
 
-	//UInt32 gpiomix = (uint)gpio.gpioData.clockslow & 0xFF;
-	//gpiomix |= (uint)((gpio.gpioData.command & 0xFF) << 8);
-	//gpiomix |= (uint)((gpio.gpioData.dataLen & 7) << 16);
-	//gpiomix |= (uint)((gpio.gpioData.enable & 1) << 19);
-	//gpiomix |= (uint)((gpio.gpioData.retval & 0xF) << 20);
-	//gpiomix |= (uint)((gpio.gpioData.select & 0xF) << 24);
-	//gpiomix |= (uint)((Convert.ToUInt32(gpio.gpioData.state) & 0x3) << 28);
-	savestate[index++] = 0; //gpiomix;
+	UInt32 gpiomix = (uint)gpio.clockslow & 0xFF;
+	gpiomix |= (uint)((gpio.command & 0xFF) << 8);
+	gpiomix |= (uint)((gpio.dataLen & 7) << 16);
+	gpiomix |= (uint)((gpio.enable & 1) << 19);
+	gpiomix |= (uint)((gpio.retval & 0xF) << 20);
+	gpiomix |= (uint)((gpio.select & 0xF) << 24);
+	gpiomix |= (uint)((((uint)gpio.state) & 0x3) << 28);
+	savestate[index++] = gpiomix;
 
 	for (int i = 0; i < 256; i++)
 	{
@@ -312,7 +312,7 @@ void Gameboy::load_savestate()
 		IRP.IRP_Flags = (UInt16)(savestate[index] & 0xFFFF);
 		GBRegs.Sect_system.IF.write(IRP.IRP_Flags);
 
-		index++; //gpio.gpioData.bits = (UInt16)((savestate[index++] >> 16) & 0x3F);
+		gpio.bits = (UInt16)((savestate[index++] >> 16) & 0x3F);
 
 		UInt32 eeprom_mix = savestate[index++];
 		for (int i = 0; i < 8; i++)
@@ -374,12 +374,12 @@ void Gameboy::load_savestate()
 		GPU_Timing.old_dispstat = GBRegs.data[4];
 
 		UInt32 gpiomix = savestate[index++];
-		//gpio.gpioData.clockslow = (byte)((gpiomix >> 0) & 0xFF);
-		//gpio.gpioData.command = (byte)((gpiomix >> 8) & 0xFF);
-		//gpio.gpioData.dataLen = (byte)((gpiomix >> 16) & 0x7);
-		//gpio.gpioData.enable = (byte)((gpiomix >> 19) & 0x1);
-		//gpio.gpioData.retval = (byte)((gpiomix >> 20) & 0xF);
-		//gpio.gpioData.select = (byte)((gpiomix >> 24) & 0xF);
-		//gpio.gpioData.state = (GPIOState)((gpiomix >> 28) & 0x3);
+		gpio.clockslow = (byte)((gpiomix >> 0) & 0xFF);
+		gpio.command = (byte)((gpiomix >> 8) & 0xFF);
+		gpio.dataLen = (byte)((gpiomix >> 16) & 0x7);
+		gpio.enable = (byte)((gpiomix >> 19) & 0x1);
+		gpio.retval = (byte)((gpiomix >> 20) & 0xF);
+		gpio.select = (byte)((gpiomix >> 24) & 0xF);
+		gpio.state = (GPIOState)((gpiomix >> 28) & 0x3);
 	}
 }

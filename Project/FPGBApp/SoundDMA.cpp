@@ -85,14 +85,14 @@ void SOUNDDMA::write_SOUNDCNT_H()
 
 	switch (GBRegs.Sect_sound.SOUNDCNT_H_Sound_1_4_Volume.read())
 	{
-		case 0: Sound.soundGenerator->volume_1_4 = 0.25f; break;
-		case 1: Sound.soundGenerator->volume_1_4 = 0.5f; break;
-		case 2: Sound.soundGenerator->volume_1_4 = 1.0f; break;
+		case 0: Sound.soundGenerator.volume_1_4 = 0.25f; break;
+		case 1: Sound.soundGenerator.volume_1_4 = 0.5f; break;
+		case 2: Sound.soundGenerator.volume_1_4 = 1.0f; break;
 	}
-	if (GBRegs.Sect_sound.SOUNDCNT_H_DMA_Sound_A_Volume.on()) { Sound.soundGenerator->volume_dma0 = 1.0f; }
-	else { Sound.soundGenerator->volume_dma0 = 0.5f; }
-	if (GBRegs.Sect_sound.SOUNDCNT_H_DMA_Sound_B_Volume.on()) { Sound.soundGenerator->volume_dma1 = 1.0f; }
-	else { Sound.soundGenerator->volume_dma1 = 0.5f; }
+	if (GBRegs.Sect_sound.SOUNDCNT_H_DMA_Sound_A_Volume.on()) { Sound.soundGenerator.volume_dma0 = 1.0f; }
+	else { Sound.soundGenerator.volume_dma0 = 0.5f; }
+	if (GBRegs.Sect_sound.SOUNDCNT_H_DMA_Sound_B_Volume.on()) { Sound.soundGenerator.volume_dma1 = 1.0f; }
+	else { Sound.soundGenerator.volume_dma1 = 0.5f; }
 }
 
 void SOUNDDMA::fill_fifo(int index, UInt32 value, bool dwaccess)

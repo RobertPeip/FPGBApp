@@ -3,6 +3,29 @@
 
 FILEIO FileIO;
 
+bool FILEIO::fileExists(string filename, bool absolutePath)
+{
+	string fullname;
+	if (absolutePath)
+	{
+		fullname = filename;
+	}
+	else
+	{
+		char* path = SDL_GetBasePath();
+		fullname = path + filename;
+	}
+
+	SDL_RWops* rw = SDL_RWFromFile(fullname.c_str(), "rb");
+	if (rw == NULL)
+	{
+		return false;
+	}
+	SDL_RWclose(rw);
+
+	return true;
+}
+
 int FILEIO::readfile(void* target, string filename, bool absolutePath)
 {
 	string fullname;
@@ -36,4 +59,26 @@ int FILEIO::readfile(void* target, string filename, bool absolutePath)
 	SDL_RWclose(rw);
 
 	return res_size;
+}
+
+void FILEIO::writefile(void* source, string filename, int size, bool absolutePath)
+{
+	string fullname;
+	if (absolutePath)
+	{
+		fullname = filename;
+	}
+	else
+	{
+		char* path = SDL_GetBasePath();
+		fullname = path + filename;
+	}
+
+	SDL_RWops* rw = SDL_RWFromFile(fullname.c_str(), "wb");
+
+	Sint64 res_size = SDL_RWsize(rw);
+
+	Sint64 nb_read_total = 0, nb_read = 1;
+	SDL_RWwrite(rw, source, 1, size);
+	SDL_RWclose(rw);
 }

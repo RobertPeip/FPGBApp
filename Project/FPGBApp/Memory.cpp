@@ -42,80 +42,60 @@ void MEMORY::reset(string filename)
 	gpio_used = false;
 	//gpio.rtcEnable(true);
 
-	load_gameram();
+	load_gameram(filename);
 }
 
 void MEMORY::GameRAMSnapshot()
 {
-	/*
 	if (createGameRAMSnapshot)
 	{
 		int index = 0;
-		for (int i = 0; i < Flash.flashSaveMemory.Length; i++)
+		for (int i = 0; i < 131072; i++)
 		{
 			GameRamSnapshot[index] = Flash.flashSaveMemory[i];
 			index++;
 		}
-		for (int i = 0; i < EEProm.eepromData.Length; i++)
+		for (int i = 0; i < 8192; i++)
 		{
 			GameRamSnapshot[index] = EEProm.eepromData[i];
 			index++;
 		}
 
+		save_gameram(gameboy.filename);
+
 		createGameRAMSnapshot = false;
 	}
-	*/
 }
 
 
-void MEMORY::load_gameram()
+void MEMORY::load_gameram(string gamename)
 {
-	/*
-	if (gameboy.filename != null)
+	string filename = gamename.substr(gamename.find_last_of("/\\") + 1);
+	filename = filename.substr(0, filename.find_last_of(".") + 1) + "sav";
+
+	if (FileIO.fileExists(filename, false))
 	{
-		string filename = Path.GetFileNameWithoutExtension(gameboy.filename) + ".sav";
-		if (File.Exists(filename))
+		FileIO.readfile(GameRamSnapshot, filename, false);
+		int index = 0;
+		for (int i = 0; i < 131072; i++)
 		{
-			FileInfo fileInfo = new FileInfo(filename);
-			if (fileInfo.Length == GameRamSnapshot.Length)
-			{
-				FileStream fileStream = fileInfo.OpenRead();
-				fileStream.Read(GameRamSnapshot, 0, GameRamSnapshot.Length);
-				fileStream.Close();
-
-				int index = 0;
-				for (int i = 0; i < Flash.flashSaveMemory.Length; i++)
-				{
-					Flash.flashSaveMemory[i] = GameRamSnapshot[index];
-					index++;
-				}
-				for (int i = 0; i < EEProm.eepromData.Length; i++)
-				{
-					EEProm.eepromData[i] = GameRamSnapshot[index];
-					index++;
-				}
-			}
-			else
-			{
-				MessageBox.Show("Savegame corrupt!");
-			}
-
+			Flash.flashSaveMemory[i] = GameRamSnapshot[index];
+			index++;
+		}
+		for (int i = 0; i < 8192; i++)
+		{
+			EEProm.eepromData[i] = GameRamSnapshot[index];
+			index++;
 		}
 	}
-	*/
 }
 
-void MEMORY::save_gameram()
+void MEMORY::save_gameram(string gamename)
 {
-	/*
-	if (gameboy.filename != null)
-	{
-		string filename = Path.GetFileNameWithoutExtension(gameboy.filename) + ".sav";
-		FileStream fileStream = new FileStream(filename, FileMode.Create);
-		fileStream.Write(GameRamSnapshot, 0, GameRamSnapshot.Length);
-		fileStream.Close();
-	}
-	*/
+	string filename = gamename.substr(gamename.find_last_of("/\\") + 1);
+	filename = filename.substr(0, filename.find_last_of(".") + 1) + "sav";
+
+	FileIO.writefile(GameRamSnapshot, filename, 131072 + 8192, false);
 }
 
 byte MEMORY::read_unreadable_byte(UInt32 offset)
@@ -857,10 +837,10 @@ void MEMORY::prepare_read_gbreg(UInt32 adr)
 	else if (adr == GBRegs.Sect_sound.SOUNDCNT_X.address)
 	{
 		GBRegs.data[adr] = (byte)(GBRegs.data[adr] & 0x80);
-		if (Sound.soundGenerator->soundchannels[0].on && Sound.soundGenerator->enable_channels_left[0] || Sound.soundGenerator->enable_channels_right[0]) { GBRegs.data[adr] |= 0x01; }
-		if (Sound.soundGenerator->soundchannels[1].on && Sound.soundGenerator->enable_channels_left[1] || Sound.soundGenerator->enable_channels_right[1]) { GBRegs.data[adr] |= 0x02; }
-		if (Sound.soundGenerator->soundchannels[2].on && Sound.soundGenerator->enable_channels_left[2] || Sound.soundGenerator->enable_channels_right[2]) { GBRegs.data[adr] |= 0x04; }
-		if (Sound.soundGenerator->soundchannels[3].on && Sound.soundGenerator->enable_channels_left[3] || Sound.soundGenerator->enable_channels_right[3]) { GBRegs.data[adr] |= 0x08; }
+		if (Sound.soundGenerator.soundchannels[0].on && Sound.soundGenerator.enable_channels_left[0] || Sound.soundGenerator.enable_channels_right[0]) { GBRegs.data[adr] |= 0x01; }
+		if (Sound.soundGenerator.soundchannels[1].on && Sound.soundGenerator.enable_channels_left[1] || Sound.soundGenerator.enable_channels_right[1]) { GBRegs.data[adr] |= 0x02; }
+		if (Sound.soundGenerator.soundchannels[2].on && Sound.soundGenerator.enable_channels_left[2] || Sound.soundGenerator.enable_channels_right[2]) { GBRegs.data[adr] |= 0x04; }
+		if (Sound.soundGenerator.soundchannels[3].on && Sound.soundGenerator.enable_channels_left[3] || Sound.soundGenerator.enable_channels_right[3]) { GBRegs.data[adr] |= 0x08; }
 	}
 }
 

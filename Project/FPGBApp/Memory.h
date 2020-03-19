@@ -43,8 +43,8 @@ public:
 
 	void reset(string filename);
 	void GameRAMSnapshot();
-	void load_gameram();
-	void save_gameram();
+	void load_gameram(string gamename);
+	void save_gameram(string gamename);
 	byte read_unreadable_byte(UInt32 offset);
 	UInt16 read_unreadable_word();
 	UInt32 read_unreadable_dword();

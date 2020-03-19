@@ -10,6 +10,7 @@ using namespace std;
 #include "Joypad.h"
 #include "CPU.h"
 #include "FileIO.h"
+#include "Memory.h"
 
 const int WIDTH = 240;
 const int HEIGHT = 160;
@@ -30,6 +31,16 @@ int emu(void* ptr)
 {
 	gameboy.run();
 	return 0;
+}
+
+void savegame()
+{
+	Memory.createGameRAMSnapshot = true;
+	while (Memory.createGameRAMSnapshot)
+	{
+		SDL_Delay(1);
+	}
+	Memory.save_gameram(gameboy.filename);
 }
 
 void savestate()
@@ -56,6 +67,17 @@ void loadstate_fromdisk(string filename)
 {
 	FileIO.readfile(gameboy.savestate, filename, true);
 	loadstate();
+}
+
+void loadstate_fromdisk_auto(string filename)
+{
+	FileIO.readfile(gameboy.savestate, filename, false);
+	loadstate();
+}
+
+void savestate_todisk(string filename)
+{
+	FileIO.writefile(gameboy.savestate, filename, 131072 * 4,false);
 }
 
 void drawer()
@@ -127,9 +149,25 @@ void drawer()
 			{
 				savestate();
 			}
+			if (keystate[SDL_SCANCODE_F6])
+			{
+				savegame();
+			}
+			if (keystate[SDL_SCANCODE_F7])
+			{
+				string filename = gameboy.filename.substr(gameboy.filename.find_last_of("/\\") + 1);
+				filename = filename.substr(0, filename.find_last_of(".") + 1) + "sst";
+				savestate_todisk(filename);
+			}
 			if (keystate[SDL_SCANCODE_F9])
 			{
 				loadstate();
+			}			
+			if (keystate[SDL_SCANCODE_F10])
+			{
+				string filename = gameboy.filename.substr(gameboy.filename.find_last_of("/\\") + 1);
+				filename = filename.substr(0, filename.find_last_of(".") + 1) + "sst";
+				loadstate_fromdisk_auto(filename);
 			}
 
 			if (keystate[SDL_SCANCODE_SPACE] || keystate[SDL_SCANCODE_0])

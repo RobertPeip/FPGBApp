@@ -77,6 +77,9 @@
     <ClCompile Include="Header.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="OSD.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gameboy.h">
@@ -145,5 +148,11 @@
     <ClInclude Include="Header.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="OSD.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\SDL2-2.0.10\lib\x64\SDL2_ttf.lib" />
   </ItemGroup>
 </Project>

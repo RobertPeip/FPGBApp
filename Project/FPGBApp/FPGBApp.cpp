@@ -3,6 +3,8 @@
 #include "SDL.h"
 using namespace std;
 
+//#define CONSOLE
+
 #include <windows.h>
 
 #include "gameboy.h"
@@ -11,6 +13,7 @@ using namespace std;
 #include "CPU.h"
 #include "FileIO.h"
 #include "Memory.h"
+#include "OSD.h"
 
 const int WIDTH = 240;
 const int HEIGHT = 160;
@@ -71,13 +74,34 @@ void loadstate_fromdisk(string filename)
 
 void loadstate_fromdisk_auto(string filename)
 {
-	FileIO.readfile(gameboy.savestate, filename, false);
+	string savefilename = filename.substr(filename.find_last_of("/\\") + 1);
+	savefilename = savefilename.substr(0, savefilename.find_last_of(".") + 1) + "sst";
+	FileIO.readfile(gameboy.savestate, savefilename, false);
 	loadstate();
 }
 
 void savestate_todisk(string filename)
 {
-	FileIO.writefile(gameboy.savestate, filename, 131072 * 4,false);
+	string savefilename = filename.substr(filename.find_last_of("/\\") + 1);
+	savefilename = savefilename.substr(0, savefilename.find_last_of(".") + 1) + "sst";
+	FileIO.writefile(gameboy.savestate, savefilename, 131072 * 4,false);
+}
+
+void openrom()
+{
+	if (gameboy.filename != "")
+	{
+		OSD.isOpen = false;
+		if (gbthread != 0)
+		{
+			gameboy.on = false;
+			int threadReturnValue;
+			SDL_WaitThread(gbthread, &threadReturnValue);
+		}
+		gameboy.coldreset = true;
+		emuframes = 0;
+		gbthread = SDL_CreateThread(emu, "emuthread", (void*)NULL);
+	}
 }
 
 void drawer()
@@ -95,16 +119,34 @@ void drawer()
 	mutex = SDL_CreateMutex();
 	const Uint8* keystate = SDL_GetKeyboardState(NULL);
 
+	// gamepad
+	SDL_GameController* controller = NULL;
+	for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+		if (SDL_IsGameController(i)) {
+			controller = SDL_GameControllerOpen(i);
+			if (controller) 
+			{
+				break;
+			}
+		}
+	}
+
+
 	// drawer
 	Uint64 currentTime = SDL_GetPerformanceCounter();
 	Uint64 lastTime_frame = SDL_GetPerformanceCounter();
 	Uint64 lastTime_second = SDL_GetPerformanceCounter();
+	Uint64 lastTime_idle = SDL_GetPerformanceCounter();
 	double delta = 0;
 
 	unsigned short frames = 0;
 
+	int OSDidlecheck = 0;
+
+#ifdef CONSOLE
 	AllocConsole();
 	freopen("CONOUT$", "w", stdout);
+#endif
 
 	const long frametime = (1000000 / 60);
 
@@ -123,67 +165,167 @@ void drawer()
 			frametimeleft = max(5000, frametimeleft + frametime - delta);
 			lastTime_frame = SDL_GetPerformanceCounter();
 
-			GPU.draw_game();
-			SDL_UpdateTexture(framebuffer, NULL, GPU.buffer, WIDTH * sizeof(uint32_t));
-			SDL_RenderClear(renderer);
-			SDL_RenderCopy(renderer, framebuffer, NULL, NULL);
+			if (OSD.isOpen)
+			{
+				OSD.render(renderer);
+			}
+			else
+			{
+				GPU.draw_game();
+				SDL_UpdateTexture(framebuffer, NULL, GPU.buffer, WIDTH * sizeof(uint32_t));
+				SDL_RenderClear(renderer);
+				SDL_RenderCopy(renderer, framebuffer, NULL, NULL);
+			}
+
 			SDL_RenderPresent(renderer);
 			SDL_PumpEvents();
 
 			frames++;
 
-			Joypad.KeyA = keystate[SDL_SCANCODE_A];
-			Joypad.KeyB = keystate[SDL_SCANCODE_S];
-			Joypad.KeyAToggle = keystate[SDL_SCANCODE_D];
-			Joypad.KeyBToggle = keystate[SDL_SCANCODE_F];
-			Joypad.KeyL = keystate[SDL_SCANCODE_Q];
-			Joypad.KeyR = keystate[SDL_SCANCODE_W];
-			Joypad.KeyStart = keystate[SDL_SCANCODE_X];
-			Joypad.KeySelect = keystate[SDL_SCANCODE_Y] | keystate[SDL_SCANCODE_Z];
-			Joypad.KeyLeft = keystate[SDL_SCANCODE_LEFT];
-			Joypad.KeyRight = keystate[SDL_SCANCODE_RIGHT];
-			Joypad.KeyUp = keystate[SDL_SCANCODE_UP];
-			Joypad.KeyDown = keystate[SDL_SCANCODE_DOWN];
+			if (OSD.isOpen)
+			{
+				if (keystate[SDL_SCANCODE_F1] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK))
+				{
+					if (OSD.idle)
+					{
+						OSD.isOpen = false;
+						OSD.idle = false;
+					}
+				}
+				else if (keystate[SDL_SCANCODE_UP] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP))
+				{
+					OSD.selectPrev();
+				}
+				else if (keystate[SDL_SCANCODE_DOWN] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN))
+				{
+					OSD.selectNext();
+				}
+				else if (keystate[SDL_SCANCODE_LEFT] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT))
+				{
+					OSD.largePrev();
+				}
+				else if (keystate[SDL_SCANCODE_RIGHT] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT))
+				{
+					OSD.largeNext();
+				}
+				else if (keystate[SDL_SCANCODE_A] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A))
+				{
+					if (OSD.idle)
+					{
+						OSD.idle = false;
+						if (OSD.OsdType == OSDTYPE::MAIN)
+						{
+							switch ((OSDMAINMENU)OSD.selected)
+							{
+							case OSDMAINMENU::LOADGAME: OSD.gotoLoadGame(); break;
+							case OSDMAINMENU::SAVESTATE: savestate(); OSD.isOpen = false; break;
+							case OSDMAINMENU::SAVEMEMDISK: savegame(); OSD.isOpen = false; break;
+							case OSDMAINMENU::SAVESTATEDISK: savestate_todisk(gameboy.filename); OSD.isOpen = false; break;
+							case OSDMAINMENU::LOADSTATE: loadstate(); OSD.isOpen = false; break;
+							case OSDMAINMENU::LOADSTATEDISK: loadstate_fromdisk_auto(gameboy.filename); OSD.isOpen = false; break;
+							case OSDMAINMENU::CPUSTEPS:
+								CPU.additional_steps += 1;
+								if (CPU.additional_steps > 10)
+									CPU.additional_steps = -10;
+								OSD.exchangeText((int)OSDMAINMENU::CPUSTEPS, "CPU Steps: " + std::to_string(CPU.additional_steps));
+								break;
+							}
+						}
+						else if (OSD.OsdType == OSDTYPE::LOAD)
+						{
+							if (OSD.selectFile())
+							{
+								openrom();
+								OSD.isOpen = false;
+							}
+						}
+					}
+				}
+				else if (keystate[SDL_SCANCODE_S] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X))
+				{
+					if (OSD.idle)
+					{
+						OSD.idle = false;
+						if (OSD.OsdType == OSDTYPE::MAIN)
+						{
+							OSD.isOpen = false;
+						}
+						else if (OSD.OsdType == OSDTYPE::LOAD)
+						{
+							OSD.gotoMain();
+						}
+					}
+				}
+				else
+				{
+					OSD.idle = true;
+				}
+			}
+			else
+			{
+				Joypad.KeyA = keystate[SDL_SCANCODE_A] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A);
+				Joypad.KeyB = keystate[SDL_SCANCODE_S] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X);
+				Joypad.KeyAToggle = keystate[SDL_SCANCODE_D];
+				Joypad.KeyBToggle = keystate[SDL_SCANCODE_F];
+				Joypad.KeyL = keystate[SDL_SCANCODE_Q] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
+				Joypad.KeyR = keystate[SDL_SCANCODE_W] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
+				Joypad.KeyStart = keystate[SDL_SCANCODE_X] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_START);
+				Joypad.KeySelect = keystate[SDL_SCANCODE_Y] | keystate[SDL_SCANCODE_Z] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B);
+				Joypad.KeyLeft = keystate[SDL_SCANCODE_LEFT] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT);
+				Joypad.KeyRight = keystate[SDL_SCANCODE_RIGHT] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+				Joypad.KeyUp = keystate[SDL_SCANCODE_UP] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP);
+				Joypad.KeyDown = keystate[SDL_SCANCODE_DOWN] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
 
-			if (keystate[SDL_SCANCODE_F5])
-			{
-				savestate();
-			}
-			if (keystate[SDL_SCANCODE_F6])
-			{
-				savegame();
-			}
-			if (keystate[SDL_SCANCODE_F7])
-			{
-				string filename = gameboy.filename.substr(gameboy.filename.find_last_of("/\\") + 1);
-				filename = filename.substr(0, filename.find_last_of(".") + 1) + "sst";
-				savestate_todisk(filename);
-			}
-			if (keystate[SDL_SCANCODE_F9])
-			{
-				loadstate();
-			}			
-			if (keystate[SDL_SCANCODE_F10])
-			{
-				string filename = gameboy.filename.substr(gameboy.filename.find_last_of("/\\") + 1);
-				filename = filename.substr(0, filename.find_last_of(".") + 1) + "sst";
-				loadstate_fromdisk_auto(filename);
-			}
+				if (keystate[SDL_SCANCODE_F1] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK))
+				{
+					if (OSD.idle)
+					{
+						OSD.gotoMain();
+						OSD.isOpen = true;
+						OSD.idle = false;
+					}
+				}
+				else
+				{
+					OSD.idle = true;
+				}
 
-			if (keystate[SDL_SCANCODE_SPACE] || keystate[SDL_SCANCODE_0])
-			{
-				GPU.lockSpeed = false;
-				GPU.frameskip = 10;
-				speedunlock = keystate[SDL_SCANCODE_0];
-			}
-			else if (!speedunlock && !keystate[SDL_SCANCODE_SPACE])
-			{
-				GPU.lockSpeed = true;
-				GPU.frameskip = 0;
-			}
-			else if (speedunlock && keystate[SDL_SCANCODE_SPACE])
-			{
-				speedunlock = false;
+				if (keystate[SDL_SCANCODE_F5])
+				{
+					savestate();
+				}
+				if (keystate[SDL_SCANCODE_F6])
+				{
+					savegame();
+				}
+				if (keystate[SDL_SCANCODE_F7])
+				{
+					savestate_todisk(gameboy.filename);
+				}
+				if (keystate[SDL_SCANCODE_F9])
+				{
+					loadstate();
+				}
+				if (keystate[SDL_SCANCODE_F10])
+				{
+					loadstate_fromdisk_auto(gameboy.filename);
+				}
+
+				if (keystate[SDL_SCANCODE_SPACE] || keystate[SDL_SCANCODE_0] || SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y))
+				{
+					GPU.lockSpeed = false;
+					GPU.frameskip = 10;
+					speedunlock = keystate[SDL_SCANCODE_0];
+				}
+				else if (!speedunlock && !keystate[SDL_SCANCODE_SPACE])
+				{
+					GPU.lockSpeed = true;
+					GPU.frameskip = 0;
+				}
+				else if (speedunlock && keystate[SDL_SCANCODE_SPACE])
+				{
+					speedunlock = false;
+				}
 			}
 
 			if (keystate[SDL_SCANCODE_1])
@@ -209,20 +351,40 @@ void drawer()
 			}
 		}
 
+		delta = (double)((currentTime - lastTime_idle) * 1000000 / (double)SDL_GetPerformanceFrequency());
+		if (delta >= 10000)
+		{
+			if (!OSD.idle)
+			{
+				OSDidlecheck--;
+				if (OSDidlecheck <= 0)
+				{
+					OSD.idle = true;
+					OSDidlecheck = 20;
+				}
+			}
+			else
+			{
+				OSDidlecheck = 50;
+			}
+			lastTime_idle = SDL_GetPerformanceCounter();
+		}
+
 		delta = (double)((currentTime - lastTime_second) * 1000000 / (double)SDL_GetPerformanceFrequency());
 		if (delta >= 1000000)
 		{
 			UInt64 cpucycles = (UInt64)gameboy.cycles;
 			double newcycles = (double)(cpucycles - oldcycles);
+#ifdef CONSOLE
 			std::cout << "CPU%: " << (int)(100 * newcycles / 16780000);
 			std::cout << " | FPS: " << frames;
 			std::cout << " | Intern FPS: " << GPU.intern_frames;
 			std::cout << "(" << GPU.videomode_frames << ")";
 			std::cout << " | AVG Cycles: " << (newcycles / (CPU.commands - oldcommands)) << "\n";
+#endif
 			SDL_SetWindowTitle(window, std::to_string(100 * newcycles / 16780000).c_str());
 
 			lastTime_second = SDL_GetPerformanceCounter();
-			//std::cout << frames << " " << GPU.intern_frames << text << "\n";
 			frames = 0;
 			if (SDL_LockMutex(mutex) == 0)
 			{
@@ -248,24 +410,11 @@ void drawer()
 	SDL_Quit();
 }
 
-void openrom()
-{
-	if (gameboy.filename != "")
-	{
-		if (gbthread != 0)
-		{
-			int threadReturnValue;
-			SDL_WaitThread(gbthread, &threadReturnValue);
-		}
-		gameboy.coldreset = true;
-		emuframes = 0;
-		gbthread = SDL_CreateThread(emu, "emuthread", (void*)NULL);
-	}
-}
-
 int main(int argc, char* argv[])
 {
-	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO); // SDL_INIT_EVERYTHING
+	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER); // SDL_INIT_EVERYTHING
+	TTF_Init();
+	OSD.init();
 
 	GPU.drawlock = SDL_CreateMutex();
 

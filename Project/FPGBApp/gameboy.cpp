@@ -60,7 +60,10 @@ void Gameboy::run()
 		DMA.work();
 		GPU_Timing.work();
 		Sound.work();
-		Sound.soundGenerator.fill();
+		if (GPU.lockSpeed)
+		{
+			Sound.soundGenerator.fill();
+		}
 		Timer.work();
 		Serial.work();
 

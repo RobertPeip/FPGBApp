@@ -3,6 +3,14 @@
 
 FILEIO FileIO;
 
+string FILEIO::getFullPath(string filename)
+{
+	string fullname;
+	char* path = SDL_GetBasePath();
+	fullname = path + filename;
+	return fullname;
+}
+
 bool FILEIO::fileExists(string filename, bool absolutePath)
 {
 	string fullname;

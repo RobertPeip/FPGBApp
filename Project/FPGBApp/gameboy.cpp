@@ -46,6 +46,7 @@ void Gameboy::reset()
 	coldreset = false;
 
 	on = true;
+	pause = false;
 }
 
 void Gameboy::run()
@@ -86,6 +87,11 @@ void Gameboy::run()
 			{
 				load_savestate();
 				do_loadstate = false;
+			}
+
+			while (pause && on)
+			{
+				SDL_Delay(1);
 			}
 		}
 	}

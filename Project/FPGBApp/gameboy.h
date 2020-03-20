@@ -8,6 +8,7 @@ class Gameboy
 {
 public:
 	bool on = false;
+	bool pause = false;
 	bool coldreset = false;
 
 	string filename;

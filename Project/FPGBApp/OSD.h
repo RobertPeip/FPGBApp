@@ -25,7 +25,10 @@ enum class OSDMAINMENU
 	SAVESTATEDISK,
 	LOADSTATE,
 	LOADSTATEDISK,
-	CPUSTEPS
+	DISPLAYSIZE,
+	FLICKERBLEND,
+	CPUSTEPS,
+	EXIT
 };
 
 class Osd
@@ -34,6 +37,8 @@ public:
 	bool isOpen;
 	bool idle;
 	int selected;
+
+	int displaysize;
 
 	OSDTYPE OsdType;
 

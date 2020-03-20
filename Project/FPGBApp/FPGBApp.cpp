@@ -17,7 +17,6 @@ using namespace std;
 
 const int WIDTH = 240;
 const int HEIGHT = 160;
-int SCALE = 4;
 
 SDL_Window* window;
 SDL_Renderer* renderer;
@@ -104,14 +103,24 @@ void openrom()
 	}
 }
 
+void set_displaysize(int mult, bool fullscreen)
+{
+	if (fullscreen)
+	{
+		OSD.displaysize = 0;
+		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+	}
+	else
+	{
+		OSD.displaysize = mult;
+		SDL_SetWindowFullscreen(window, 0);
+		SDL_SetWindowSize(window, WIDTH * mult, HEIGHT * mult);
+	}
+}
+
 void drawer()
 {
-	SDL_Window* window = SDL_CreateWindow
-	("FPGBApp", // window's title
-		200, 200, // coordinates on the screen, in pixels, of the window's upper left corner
-		WIDTH * SCALE, HEIGHT * SCALE, // window's length and height in pixels  
-		SDL_WINDOW_OPENGL);
-
+	window = SDL_CreateWindow ("FPGBApp", 200, 200,WIDTH * 4, HEIGHT * 4, SDL_WINDOW_OPENGL);
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
 	framebuffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 	SDL_RenderSetLogicalSize(renderer, WIDTH, HEIGHT);
@@ -153,7 +162,8 @@ void drawer()
 	UInt64 oldcycles = 0;
 	UInt64 oldcommands = 0;
 
-	while (true)
+	bool running = true;
+	while (running)
 	{
 		currentTime = SDL_GetPerformanceCounter();
 
@@ -184,7 +194,8 @@ void drawer()
 
 			if (OSD.isOpen)
 			{
-				if (keystate[SDL_SCANCODE_F1] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK))
+				gameboy.pause = true;
+				if (keystate[SDL_SCANCODE_ESCAPE] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK))
 				{
 					if (OSD.idle)
 					{
@@ -223,12 +234,39 @@ void drawer()
 							case OSDMAINMENU::SAVESTATEDISK: savestate_todisk(gameboy.filename); OSD.isOpen = false; break;
 							case OSDMAINMENU::LOADSTATE: loadstate(); OSD.isOpen = false; break;
 							case OSDMAINMENU::LOADSTATEDISK: loadstate_fromdisk_auto(gameboy.filename); OSD.isOpen = false; break;
+							case OSDMAINMENU::DISPLAYSIZE:
+								OSD.displaysize += 1;
+								if (OSD.displaysize > 6)
+									OSD.displaysize = 0;
+								if (OSD.displaysize == 0)
+								{
+									set_displaysize(0, true);
+									OSD.exchangeText((int)OSDMAINMENU::DISPLAYSIZE, "Displaysize: Fullscreen");
+								}
+								else
+								{
+									set_displaysize(OSD.displaysize, false);
+									OSD.exchangeText((int)OSDMAINMENU::DISPLAYSIZE, "Displaysize: " + std::to_string(OSD.displaysize));
+								}
+								break;
+							case OSDMAINMENU::FLICKERBLEND:
+								GPU.interlace_blending = !GPU.interlace_blending;
+								if (GPU.interlace_blending)
+								{
+									OSD.exchangeText((int)OSDMAINMENU::FLICKERBLEND, "Flickerblend: on");
+								}
+								else
+								{
+									OSD.exchangeText((int)OSDMAINMENU::FLICKERBLEND, "Flickerblend: off");
+								}
+								break;
 							case OSDMAINMENU::CPUSTEPS:
 								CPU.additional_steps += 1;
 								if (CPU.additional_steps > 10)
 									CPU.additional_steps = -10;
 								OSD.exchangeText((int)OSDMAINMENU::CPUSTEPS, "CPU Steps: " + std::to_string(CPU.additional_steps));
 								break;
+							case OSDMAINMENU::EXIT: running = false; break;
 							}
 						}
 						else if (OSD.OsdType == OSDTYPE::LOAD)
@@ -263,6 +301,8 @@ void drawer()
 			}
 			else
 			{
+				gameboy.pause = false;
+
 				Joypad.KeyA = keystate[SDL_SCANCODE_A] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A);
 				Joypad.KeyB = keystate[SDL_SCANCODE_S] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X);
 				Joypad.KeyAToggle = keystate[SDL_SCANCODE_D];
@@ -276,7 +316,7 @@ void drawer()
 				Joypad.KeyUp = keystate[SDL_SCANCODE_UP] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP);
 				Joypad.KeyDown = keystate[SDL_SCANCODE_DOWN] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
 
-				if (keystate[SDL_SCANCODE_F1] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK))
+				if (keystate[SDL_SCANCODE_ESCAPE] | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK))
 				{
 					if (OSD.idle)
 					{
@@ -328,27 +368,13 @@ void drawer()
 				}
 			}
 
-			if (keystate[SDL_SCANCODE_1])
-			{
-				SCALE = 1;
-				SDL_SetWindowFullscreen(window, 0);
-				SDL_SetWindowSize(window, WIDTH * SCALE, HEIGHT * SCALE);
-			}
-			if (keystate[SDL_SCANCODE_4])
-			{
-				SCALE = 4;
-				SDL_SetWindowFullscreen(window, 0);
-				SDL_SetWindowSize(window, WIDTH * SCALE, HEIGHT * SCALE);
-			}
-			if (keystate[SDL_SCANCODE_RETURN] && keystate[SDL_SCANCODE_LALT])
-			{
-				SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-			}
-
-			if (keystate[SDL_SCANCODE_ESCAPE])
-			{
-				break;
-			}
+			if (keystate[SDL_SCANCODE_1]) { set_displaysize(1, false); }
+			if (keystate[SDL_SCANCODE_2]) { set_displaysize(2, false); }
+			if (keystate[SDL_SCANCODE_3]) { set_displaysize(3, false); }
+			if (keystate[SDL_SCANCODE_4]) { set_displaysize(4, false); }
+			if (keystate[SDL_SCANCODE_5]) { set_displaysize(5, false); }
+			if (keystate[SDL_SCANCODE_6]) { set_displaysize(6, false); }
+			if (keystate[SDL_SCANCODE_RETURN] && keystate[SDL_SCANCODE_LALT]) { set_displaysize(0, true); }
 		}
 
 		delta = (double)((currentTime - lastTime_idle) * 1000000 / (double)SDL_GetPerformanceFrequency());
@@ -414,7 +440,9 @@ int main(int argc, char* argv[])
 {
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER); // SDL_INIT_EVERYTHING
 	TTF_Init();
+	set_displaysize(4, false);
 	OSD.init();
+
 
 	GPU.drawlock = SDL_CreateMutex();
 

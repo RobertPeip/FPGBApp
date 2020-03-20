@@ -2,6 +2,7 @@
 #include "FileIO.h"
 #include "CPU.h"
 #include "gameboy.h"
+#include "GPU.h"
 
 Osd OSD;
 
@@ -26,7 +27,10 @@ void Osd::gotoMain()
 	currentMenu.push_back("SaveStateDisk (F6)");
 	currentMenu.push_back("LoadState (F9)");
 	currentMenu.push_back("LoadStateDisk (F10)");
+	currentMenu.push_back("Displaysize: " + std::to_string(displaysize));
+	currentMenu.push_back("Flickerblend: off");
 	currentMenu.push_back("CPU Steps: " + std::to_string(CPU.additional_steps));
+	currentMenu.push_back("EXIT");
 }
 
 void Osd::gotoLoadGame()

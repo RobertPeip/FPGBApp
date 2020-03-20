@@ -28,7 +28,7 @@ While it can play almost every game, it has quiet some shortcomings.
 
 # Input
 Keyboard:
-- OSD Menu - F1
+- OSD Menu - Escape
 - DPad - Cursor Keys
 - A - A (D for Turbo fire)
 - B - S (F for Turbo fire)

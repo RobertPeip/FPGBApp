@@ -7,9 +7,8 @@ Conversion from C# to C++, about double speed.
 This emulator is not made for good playing experience, but as a research project!
 While it can play almost every game, it has quiet some shortcomings.
 
-- No UI!
 - Some features are only implemented to the point they are understood and can be implemented in FPGA logic
-- while it's using SDL and should be plattform independent, only a Visual Studio porject for Windows exists currently
+- while it's using SDL and should be plattform independent, only a Visual Studio project for Windows exists currently
 
 # Features (some not yet available via UI or Keys!)
 - all videomodes including affine and special effects
@@ -23,11 +22,13 @@ While it can play almost every game, it has quiet some shortcomings.
 - Affine Layer (Mode 7) 2x2 Antialiasing
 
 # Features missing
-- Fixed Input Keys(see below)
+- Fixed Keyboard/Gamepad Keys(see below)
 - Asynchronous screen update(tearing!)
 - No support of CPU Pipeline prefetch(Classic NES games don't work)
 
 # Input
+Keyboard:
+- OSD Menu - F1
 - DPad - Cursor Keys
 - A - A (D for Turbo fire)
 - B - S (F for Turbo fire)
@@ -36,8 +37,12 @@ While it can play almost every game, it has quiet some shortcomings.
 - Start - X
 - Select - Y
 - Quicksave - F5
+- Saveram to Disk - F6
+- Quicksave to Disk - F7
 - Quickload - F9
+- Quickload from Disk - F10
 - FastForward - Space = Hold, 0 = on
+Gmapad: fixed buttons
 
 # Bios
 No Bios included, please add Bios as gba_bios.bin

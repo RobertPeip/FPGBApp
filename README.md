@@ -25,6 +25,7 @@ While it can play almost every game, it has quiet some shortcomings.
 - Fixed Keyboard/Gamepad Keys(see below)
 - Asynchronous screen update(tearing!)
 - No support of CPU Pipeline prefetch(Classic NES games don't work)
+- Gamepak Features like RTC, Solar Sensor, Gyro, Tilt
 
 # Input
 Keyboard:
@@ -42,7 +43,8 @@ Keyboard:
 - Quickload - F9
 - Quickload from Disk - F10
 - FastForward - Space = Hold, 0 = on
-Gmapad: fixed buttons
+
+Gamepad: fixed buttons
 
 # Bios
 No Bios included, please add Bios as gba_bios.bin

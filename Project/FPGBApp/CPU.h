@@ -21,6 +21,10 @@ public:
 
 	UInt32 opcode;
 	UInt32 flags;
+	bool flag_Negative;
+	bool flag_Carry;
+	bool flag_Zero;
+	bool flag_V_Overflow;
 	Int32 newticks;
 	uint busprefetch;
 	byte thumbmode;
@@ -115,6 +119,7 @@ private:
 
 #if DEBUG
 	void trace_file_last();
+	void vcd_file_last();
 #endif
 
 	void interrupt();

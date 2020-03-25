@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <bitset>
 using namespace std;
 
 #include "CPU.h"
@@ -24,6 +25,11 @@ void cpustate::update(byte mode)
 	if (CPU.Flag_Carry) flags += 0x100;
 	if (CPU.Flag_Zero) flags += 0x10;
 	if (CPU.Flag_V_Overflow) flags += 0x1;
+
+	flag_Negative = CPU.Flag_Negative;
+	flag_Carry = CPU.Flag_Carry;
+	flag_Zero = CPU.Flag_Zero;
+	flag_V_Overflow = CPU.Flag_V_Overflow;
 
 	this->thumbmode = mode;
 
@@ -109,9 +115,9 @@ void Cpu::trace_file_last()
 	{
 		cpustate state = Tracelist[i];
 
-		for (int i = 0; i < 16; i++)
+		for (int j = 0; j < 16; j++)
 		{
-			fprintf(file, "%08X ", state.debugregs[i]);
+			fprintf(file, "%08X ", state.debugregs[j]);
 		}
 		fprintf(file, "%08X ", state.opcode); // opcode
 		fprintf(file, "%04X ", state.flags); // flags
@@ -147,6 +153,139 @@ void Cpu::trace_file_last()
 		fprintf(file, "%08X ", state.SPSR_SVC);  // reg[SPSR_SVC]
 
 		fputs("\n", file);
+
+		i = (i + 1) % Tracelist_Length;
+		if (i == traclist_ptr)
+		{
+			break;
+		}
+	}
+	fclose(file);
+}
+
+void Cpu::vcd_file_last()
+{
+	FILE* file = fopen("..\\..\\debug.vcd", "w");
+
+	fprintf(file, "$date Feb 29, 2134 $end\n");
+	fprintf(file, "$version 0.1 $end\n");
+	fprintf(file, "$comment no $end\n");
+	fprintf(file, "$timescale 1ps $end\n");
+	fprintf(file, "$scope module logic $end\n");
+
+	fprintf(file, "$var wire 32 R0 reg0 $end\n");
+	fprintf(file, "$var wire 32 R1 reg1 $end\n");
+	fprintf(file, "$var wire 32 R2 reg2 $end\n");
+	fprintf(file, "$var wire 32 R3 reg3 $end\n");
+	fprintf(file, "$var wire 32 R4 reg4 $end\n");
+	fprintf(file, "$var wire 32 R5 reg5 $end\n");
+	fprintf(file, "$var wire 32 R6 reg6 $end\n");
+	fprintf(file, "$var wire 32 R7 reg7 $end\n");
+	fprintf(file, "$var wire 32 R8 reg8 $end\n");
+	fprintf(file, "$var wire 32 R9 reg9 $end\n");
+	fprintf(file, "$var wire 32 R10 reg10 $end\n");
+	fprintf(file, "$var wire 32 R11 reg11 $end\n");
+	fprintf(file, "$var wire 32 R12 reg12 $end\n");
+	fprintf(file, "$var wire 32 R13 reg13 $end\n");
+	fprintf(file, "$var wire 32 R14 reg14 $end\n");
+	fprintf(file, "$var wire 32 R15 reg15 $end\n");
+	fprintf(file, "$var wire 32 O Opcode $end\n");
+	fprintf(file, "$var wire 1 FN Flag_Neg $end\n");
+	fprintf(file, "$var wire 1 FC Flag_Carry $end\n");
+	fprintf(file, "$var wire 1 FZ Flag_Zero $end\n");
+	fprintf(file, "$var wire 1 FV Flag_Overflow $end\n");
+	fprintf(file, "$var wire 16 TK Ticks $end\n");
+	fprintf(file, "$var wire 8 PF Prefetch $end\n");
+	fprintf(file, "$var wire 1 AT isThumb $end\n");
+	fprintf(file, "$var wire 8 M Mode $end\n");
+	fprintf(file, "$var wire 1 I IRQ_disable $end\n");
+	fprintf(file, "$var wire 16 IF IRQ_Flags $end\n");
+	fprintf(file, "$var wire 8 IW IRQ_wait $end\n");
+	fprintf(file, "$var wire 32 T0 Timer_0 $end\n");
+	fprintf(file, "$var wire 32 T1 Timer_1 $end\n");
+	fprintf(file, "$var wire 32 T2 Timer_2 $end\n");
+	fprintf(file, "$var wire 32 T3 Timer_3 $end\n");
+	fprintf(file, "$var wire 32 M1 Memory_1 $end\n");
+	fprintf(file, "$var wire 32 M2 Memory_2 $end\n");
+	fprintf(file, "$var wire 32 M3 Memory_3 $end\n");
+	fprintf(file, "$var wire 32 DMA DMA_count $end\n");
+	fprintf(file, "$var wire 32 R16 reg16 $end\n");
+	fprintf(file, "$var wire 32 R17 reg17 $end\n");
+	fprintf(file, "$var wire 32 R13u R13usr $end\n");
+	fprintf(file, "$var wire 32 R14u R14usr $end\n");
+	fprintf(file, "$var wire 32 R13i R13irq $end\n");
+	fprintf(file, "$var wire 32 R14i R14irq $end\n");
+	fprintf(file, "$var wire 32 R13s R13svc $end\n");
+	fprintf(file, "$var wire 32 R14s R14svc $end\n");
+	fprintf(file, "$var wire 32 SPi SPSR_irq $end\n");
+	fprintf(file, "$var wire 32 SPs SPSR_svc $end\n");
+
+	fprintf(file, "$upscope $end\n");
+	fprintf(file, "$enddefinitions $end\n");
+
+	int i = 0;
+	while (true)
+	{
+		fprintf(file, "#%d\n", i); //timestamp
+
+		cpustate laststate = Tracelist[i];
+		cpustate state = Tracelist[i];
+		if (i > 0)
+		{
+			laststate = Tracelist[i - 1];
+		}
+
+		// all changes for this timestamp
+		for (int j = 0; j < 16; j++)
+		{
+			if (i == 0 || state.debugregs[j] != laststate.debugregs[j]) fprintf(file, "b%s R%d\n" , std::bitset<32>(state.debugregs[j]).to_string().c_str(), j);
+		}
+		if (i == 0 || state.opcode != laststate.opcode)
+		{
+			if (state.thumbmode)
+			{
+				fprintf(file, "b%s O\n", std::bitset<16>(state.opcode).to_string().c_str());
+			}
+			else
+			{
+				fprintf(file, "b%s O\n", std::bitset<32>(state.opcode).to_string().c_str());
+			}
+		}
+
+		if (i == 0 || state.flag_Negative != laststate.flag_Negative) fprintf(file, "%sFN\n", std::bitset<1>(state.flag_Negative).to_string().c_str());
+		if (i == 0 || state.flag_Carry != laststate.flag_Carry) fprintf(file, "%sFC\n", std::bitset<1>(state.flag_Carry).to_string().c_str());
+		if (i == 0 || state.flag_Zero != laststate.flag_Zero) fprintf(file, "%sFZ\n", std::bitset<1>(state.flag_Zero).to_string().c_str());
+		if (i == 0 || state.flag_V_Overflow != laststate.flag_V_Overflow) fprintf(file, "%sFV\n", std::bitset<1>(state.flag_V_Overflow).to_string().c_str());
+
+		if (i == 0 || state.newticks != laststate.newticks) fprintf(file, "b%s TK\n", std::bitset<16>(state.newticks).to_string().c_str());
+		if (i == 0 || state.busprefetch != laststate.busprefetch) fprintf(file, "b%s PF\n", std::bitset<12>(state.busprefetch).to_string().c_str());
+		if (i == 0 || state.thumbmode != laststate.thumbmode) fprintf(file, "%sAT\n", std::bitset<1>(state.thumbmode).to_string().c_str());
+		if (i == 0 || state.armmode != laststate.armmode) fprintf(file, "b%s M\n", std::bitset<8>(state.armmode).to_string().c_str());
+		if (i == 0 || state.irpdisable != laststate.irpdisable) fprintf(file, "%sI\n", std::bitset<1>(state.irpdisable).to_string().c_str());
+		if (i == 0 || state.IF_intern != laststate.IF_intern) fprintf(file, "b%s IF\n", std::bitset<16>(state.IF_intern).to_string().c_str());
+		if (i == 0 || state.irp_wait != laststate.irp_wait) fprintf(file, "b%s IW\n", std::bitset<8>(state.irp_wait).to_string().c_str());
+
+		if (i == 0 || state.timer0 != laststate.timer0) fprintf(file, "b%s T0\n", std::bitset<32>(state.timer0).to_string().c_str());
+		if (i == 0 || state.timer1 != laststate.timer1) fprintf(file, "b%s T1\n", std::bitset<32>(state.timer1).to_string().c_str());
+		if (i == 0 || state.timer2 != laststate.timer2) fprintf(file, "b%s T2\n", std::bitset<32>(state.timer2).to_string().c_str());
+		if (i == 0 || state.timer3 != laststate.timer3) fprintf(file, "b%s T3\n", std::bitset<32>(state.timer3).to_string().c_str());
+
+		if (i == 0 || state.memory01 != laststate.memory01) fprintf(file, "b%s M1\n", std::bitset<32>(state.memory01).to_string().c_str());
+		if (i == 0 || state.memory02 != laststate.memory02) fprintf(file, "b%s M2\n", std::bitset<32>(state.memory02).to_string().c_str());
+		if (i == 0 || state.memory03 != laststate.memory03) fprintf(file, "b%s M3\n", std::bitset<32>(state.memory03).to_string().c_str());
+
+		if (i == 0 || state.debug_dmatranfers != laststate.debug_dmatranfers) fprintf(file, "b%s DMA\n", std::bitset<32>(state.debug_dmatranfers).to_string().c_str());
+
+		if (i == 0 || state.R16 != laststate.R16) fprintf(file, "b%s R16\n", std::bitset<32>(state.R16).to_string().c_str());
+		if (i == 0 || state.R17 != laststate.R17) fprintf(file, "b%s R17\n", std::bitset<32>(state.R17).to_string().c_str());
+		if (i == 0 || state.R13_USR != laststate.R13_USR) fprintf(file, "b%s R13u\n", std::bitset<32>(state.R13_USR).to_string().c_str());
+		if (i == 0 || state.R14_USR != laststate.R14_USR) fprintf(file, "b%s R14u\n", std::bitset<32>(state.R14_USR).to_string().c_str());
+		if (i == 0 || state.R13_IRQ != laststate.R13_IRQ) fprintf(file, "b%s R13i\n", std::bitset<32>(state.R13_IRQ).to_string().c_str());
+		if (i == 0 || state.R14_IRQ != laststate.R14_IRQ) fprintf(file, "b%s R14i\n", std::bitset<32>(state.R14_IRQ).to_string().c_str());
+		if (i == 0 || state.R13_SVC != laststate.R13_SVC) fprintf(file, "b%s R13s\n", std::bitset<32>(state.R13_SVC).to_string().c_str());
+		if (i == 0 || state.R14_SVC != laststate.R14_SVC) fprintf(file, "b%s R14s\n", std::bitset<32>(state.R14_SVC).to_string().c_str());
+		if (i == 0 || state.SPSR_IRQ != laststate.SPSR_IRQ) fprintf(file, "b%s SPi\n", std::bitset<32>(state.SPSR_IRQ).to_string().c_str());
+		if (i == 0 || state.SPSR_SVC != laststate.SPSR_SVC) fprintf(file, "b%s SPs\n", std::bitset<32>(state.SPSR_SVC).to_string().c_str());
 
 		i = (i + 1) % Tracelist_Length;
 		if (i == traclist_ptr)
@@ -238,7 +377,7 @@ void Cpu::nextInstr()
 
 		//if (cyclenr == 7100000 && runmoretrace == 0) // end of bios
 		//if (cyclenr == 38000000 && runmoretrace == 0)
-		if (commands == 1000001 && runmoretrace == 0)
+		if (commands == 0000001 && runmoretrace == 0)
 		{
 			traclist_ptr = 0;
 			//runmoretrace = 300001;
@@ -268,6 +407,7 @@ void Cpu::nextInstr()
 			if (runmoretrace == 0)
 			{
 				//trace_file_last();
+				//vcd_file_last();
 			}
 		}
 
@@ -277,7 +417,7 @@ void Cpu::nextInstr()
 		//}
 
 		//if (traclist_ptr == 422) - game entry
-		if (traclist_ptr == 169772)
+		if (traclist_ptr == 29800)
 		{
 			int xx = 0;
 		}

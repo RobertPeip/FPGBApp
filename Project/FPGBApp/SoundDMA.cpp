@@ -19,6 +19,9 @@ SingleSoundDMA::SingleSoundDMA(GBReg Enable_RIGHT, GBReg Enable_LEFT, GBReg Time
 	timerindex = 0;
 	any_on = false;
 
+	while (fifo.size() > 0) fifo.pop();
+	while (playfifo.size() > 0) playfifo.pop();
+
 	outfifo.push(0);
 	tickcount = 0;
 }
@@ -29,9 +32,9 @@ void SingleSoundDMA::work()
 	while (tickcount >= Sound.SAMPLERATE)
 	{
 		tickcount -= Sound.SAMPLERATE;
-		if (fifo.size() > 0 && outfifo.size() < 15000)
+		if (playfifo.size() > 0 && outfifo.size() < 15000)
 		{
-			outfifo.push(fifo.front());
+			outfifo.push(playfifo.front());
 		}
 	}
 }
@@ -47,23 +50,40 @@ void SOUNDDMA::reset()
 
 void SOUNDDMA::timer_overflow(uint timerindex)
 {
+	bool request = false;
 	CPU.newticks = 0;
 	for (uint i = 0; i < 2; i++)
 	{
 		if (soundDMAs[i].any_on && soundDMAs[i].timerindex == timerindex)
 		{
-			if (soundDMAs[i].fifo.size() > 0)
+			if (soundDMAs[i].fifo.size() <= 3)
 			{
-				soundDMAs[i].fifo.pop();
+				request |= DMA.request_audio(i);
 			}
 
-			if (soundDMAs[i].fifo.size() == 16 || soundDMAs[i].fifo.size() == 0)
+			if (soundDMAs[i].playfifo.size() > 0)
 			{
-				DMA.request_audio(i);
-				DMA.work();
-				DMA.delayed = true;
+				soundDMAs[i].playfifo.pop();
+			}
+			if (soundDMAs[i].playfifo.size() == 0)
+			{
+				UInt32 value = 0;
+				if (soundDMAs[i].fifo.size() > 0)
+				{
+					value = soundDMAs[i].fifo.front();
+					soundDMAs[i].fifo.pop();
+					soundDMAs[i].playfifo.push((byte)value);
+					soundDMAs[i].playfifo.push((byte)(value >> 8));
+					soundDMAs[i].playfifo.push((byte)(value >> 16));
+					soundDMAs[i].playfifo.push((byte)(value >> 24));
+				}
 			}
 		}
+	}
+	if (request)
+	{
+		DMA.work();
+		DMA.delayed = true;
 	}
 }
 
@@ -97,11 +117,6 @@ void SOUNDDMA::write_SOUNDCNT_H()
 
 void SOUNDDMA::fill_fifo(int index, UInt32 value, bool dwaccess)
 {
-	soundDMAs[index].fifo.push((byte)value);
-	soundDMAs[index].fifo.push((byte)(value >> 8));
-	if (dwaccess)
-	{
-		soundDMAs[index].fifo.push((byte)(value >> 16));
-		soundDMAs[index].fifo.push((byte)(value >> 24));
-	}
+	// real hardware does also clear fifo when writing 8th dword
+	soundDMAs[index].fifo.push(value);
 }

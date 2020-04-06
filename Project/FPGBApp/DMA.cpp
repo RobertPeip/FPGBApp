@@ -39,6 +39,7 @@ SingleDMA::SingleDMA(UInt16 irpmask,
 	this->dMA_Enable = false;
 	running = false;
 	waiting = false;
+	waitTicks = 0;
 }
 
 void Dma::reset()
@@ -160,7 +161,6 @@ void Dma::check_run(int index)
 		DMAs[index].waitTicks = 3;
 		DMAs[index].waiting = false;
 		DMAs[index].first = true;
-		DMAs[index].totalTicks = 0;
 		DMAs[index].fullcount = DMAs[index].count;
 	}
 	else if (DMAs[index].dMA_Start_Timing == 3)
@@ -294,7 +294,6 @@ void Dma::work()
 					}
 				}
 				CPU.newticks += ticks;
-				DMAs[i].totalTicks += ticks;
 
 				if (DMAs[i].count == 0)
 				{
@@ -360,7 +359,7 @@ void Dma::work()
 	new_vblank = false;
 }
 
-void Dma::request_audio(uint audioindex)
+bool Dma::request_audio(uint audioindex)
 {
 	for (int i = 1; i < 3; i++)
 	{
@@ -370,10 +369,11 @@ void Dma::request_audio(uint audioindex)
 			{
 				DMAs[i].running = true;
 				DMAs[i].first = true;
-				DMAs[i].totalTicks = 0;
 				DMAs[i].fullcount = DMAs[i].count;
 				DMAs[i].skipdebugout = true;
+				return true;
 			}
 		}
 	}
+	return false;
 }

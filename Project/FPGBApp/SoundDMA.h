@@ -14,7 +14,8 @@ public:
 	GBReg Reset_FIFO;
 
 	byte timerindex;
-	std::queue<byte> fifo;
+	std::queue<UInt32> fifo;
+	std::queue<byte> playfifo;
 	bool any_on;
 
 	std::queue<byte> outfifo;

@@ -37,6 +37,7 @@ int emu(void* ptr)
 
 void savegame()
 {
+	gameboy.pause = false;
 	Memory.createGameRAMSnapshot = true;
 	while (Memory.createGameRAMSnapshot)
 	{
@@ -47,6 +48,7 @@ void savegame()
 
 void savestate()
 {
+	gameboy.pause = false;
 	gameboy.do_savestate = true;
 
 	while (gameboy.do_savestate)
@@ -57,6 +59,7 @@ void savestate()
 
 void loadstate()
 {
+	gameboy.pause = false;
 	gameboy.do_loadstate = true;
 
 	while (gameboy.do_loadstate)
@@ -67,12 +70,14 @@ void loadstate()
 
 void loadstate_fromdisk(string filename)
 {
+	gameboy.pause = false;
 	FileIO.readfile(gameboy.savestate, filename, true);
 	loadstate();
 }
 
 void loadstate_fromdisk_auto(string filename)
 {
+	gameboy.pause = false;
 	string savefilename = filename.substr(filename.find_last_of("/\\") + 1);
 	savefilename = savefilename.substr(0, savefilename.find_last_of(".") + 1) + "sst";
 	FileIO.readfile(gameboy.savestate, savefilename, false);
@@ -81,6 +86,7 @@ void loadstate_fromdisk_auto(string filename)
 
 void savestate_todisk(string filename)
 {
+	gameboy.pause = false;
 	string savefilename = filename.substr(filename.find_last_of("/\\") + 1);
 	savefilename = savefilename.substr(0, savefilename.find_last_of(".") + 1) + "sst";
 	FileIO.writefile(gameboy.savestate, savefilename, 131072 * 4,false);

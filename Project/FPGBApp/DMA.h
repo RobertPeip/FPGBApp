@@ -39,7 +39,6 @@ public:
 	UInt32 addr_target;
 	UInt32 count;
 	UInt32 fullcount;
-	int totalTicks;
 	int waitTicks;
 	bool skipdebugout;
 
@@ -71,6 +70,6 @@ public:
 	void set_settings(int index);
 	void check_run(int index);
 	void work();
-	void request_audio(uint audioindex);
+	bool request_audio(uint audioindex);
 };
 extern Dma DMA;

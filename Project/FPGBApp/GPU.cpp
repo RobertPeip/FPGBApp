@@ -1035,8 +1035,8 @@ void Gpu::draw_bg_mode2(Pixel pixelslocal[], UInt32 mapbase, UInt32 tilebase, bo
 		int yyy;
 		if (wrapping)
 		{
-			xxx = (realX >> 8) % scroll_x_mod;
-			yyy = (realY >> 8) % scroll_y_mod;
+			xxx = (realX >> 8) & (scroll_x_mod - 1);
+			yyy = (realY >> 8) & (scroll_y_mod - 1);
 		}
 		else
 		{
@@ -1119,8 +1119,8 @@ void Gpu::draw_bg_mode2_SSAA4x(Pixel pixelslocal[], UInt32 mapbase, UInt32 tileb
 		int yyy;
 		if (wrapping)
 		{
-			xxx = (realX >> 8) % scroll_x_mod;
-			yyy = (realY >> 8) % scroll_y_mod;
+			xxx = (realX >> 8) & (scroll_x_mod - 1);
+			yyy = (realY >> 8) & (scroll_y_mod - 1);
 		}
 		else
 		{

@@ -118,5 +118,12 @@ void SOUNDDMA::write_SOUNDCNT_H()
 void SOUNDDMA::fill_fifo(int index, UInt32 value, bool dwaccess)
 {
 	// real hardware does also clear fifo when writing 8th dword
-	soundDMAs[index].fifo.push(value);
+	if (dwaccess)
+	{
+		soundDMAs[index].fifo.push(value);
+	}
+	else
+	{
+		soundDMAs[index].fifo.push(value | (value << 16));
+	}
 }

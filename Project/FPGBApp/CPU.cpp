@@ -2458,10 +2458,10 @@ void Cpu::data_processing(bool imm, byte opcode, bool s_updateflags, byte Rn_op1
 	case 0x5: alu_add_withcarry(Rdest, op1_val, op2_val, s_updateflags, Flag_Carry); writeback = true; break;           // ADC 0101 operand1 + operand2 + carry
 	case 0x6: alu_sub_withcarry(Rdest, op1_val, op2_val, s_updateflags, Flag_Carry); writeback = true; break;           // SBC 0110 operand1 - operand2 + carry - 1
 	case 0x7: alu_sub_withcarry(Rdest, op2_val, op1_val, s_updateflags, Flag_Carry); writeback = true; break;           // RSC 0111 operand2 - operand1 + carry - 1
-	case 0x8: alu_and(Rdest, op1_val, op2_val, s_updateflags, false, shiftercarry); s_updateflags = false; break;       // TST 1000 as AND, but result is not written
-	case 0x9: alu_xor(Rdest, op1_val, op2_val, s_updateflags, false, shiftercarry); s_updateflags = false; break;       // TEQ 1001 as EOR, but result is not written
-	case 0xA: alu_sub(Rdest, op1_val, op2_val, s_updateflags, false); s_updateflags = false; break;                     // CMP 1010 as SUB, but result is not written
-	case 0xB: alu_add(Rdest, op1_val, op2_val, s_updateflags, false); s_updateflags = false; break;                     // CMN 1011 as ADD, but result is not written
+	case 0x8: alu_and(Rdest, op1_val, op2_val, s_updateflags, false, shiftercarry); writeback = true; break;            // TST 1000 as AND, but result is not written // TODO: in case of modeswitch there is no pipeline flush!
+	case 0x9: alu_xor(Rdest, op1_val, op2_val, s_updateflags, false, shiftercarry); writeback = true; break;            // TEQ 1001 as EOR, but result is not written // TODO: in case of modeswitch there is no pipeline flush!
+	case 0xA: alu_sub(Rdest, op1_val, op2_val, s_updateflags, false); writeback = true; break;                          // CMP 1010 as SUB, but result is not written // TODO: in case of modeswitch there is no pipeline flush!
+	case 0xB: alu_add(Rdest, op1_val, op2_val, s_updateflags, false); writeback = true; break;                          // CMN 1011 as ADD, but result is not written // TODO: in case of modeswitch there is no pipeline flush!
 	case 0xC: alu_or(Rdest, op1_val, op2_val, s_updateflags, shiftercarry); writeback = true; break;                    // ORR 1100 operand1 OR operand2
 	case 0xD: alu_mov(Rdest, op2_val, s_updateflags, shiftercarry); writeback = true; break;                            // MOV 1101 operand2(operand1 is ignored)
 	case 0xE: alu_and_not(Rdest, op1_val, op2_val, s_updateflags, shiftercarry); writeback = true; break;               // BIC 1110 operand1 AND NOT operand2(Bit clear)

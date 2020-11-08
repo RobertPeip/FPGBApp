@@ -37,11 +37,25 @@ void cpustate::update(byte mode)
 	{
 		if (mode == 1)
 		{
-			this->opcode = Memory.read_word(CPU.PC);
+			if (CPU.flushPipeline)
+			{
+				this->opcode = Memory.read_word(CPU.PC);
+			}
+			else
+			{
+				this->opcode = CPU.instr1;
+			}
 		}
 		else
 		{
-			this->opcode = Memory.read_dword(CPU.PC);
+			if (CPU.flushPipeline)
+			{
+				this->opcode = Memory.read_dword(CPU.PC);
+			}
+			else
+			{
+				this->opcode = CPU.instr1;
+			}
 		}
 	}
 	else
@@ -77,9 +91,9 @@ void cpustate::update(byte mode)
 	//this->memory03 = Memory.read_dword(0x04000208); // master irp
 	//this->memory01 = Memory.read_dword(0x04000200); // IME/IF
 
-	this->memory01 = Memory.read_dword(0x04000000); // display settings
+	this->memory01 = 0;//Memory.read_dword(0x04000000); // display settings
 	this->memory02 = 0;// (UInt32)SoundDMA.soundDMAs[0].fifo.Count;
-	this->memory03 = Memory.read_dword(0x04000004); // vcount
+	this->memory03 = 0;//Memory.read_dword(0x04000004); // vcount
 
 	this->debug_dmatranfers = DMA.debug_dmatranfers;
 
@@ -238,7 +252,7 @@ void Cpu::vcd_file_last()
 		// all changes for this timestamp
 		for (int j = 0; j < 16; j++)
 		{
-			if (i == 0 || state.debugregs[j] != laststate.debugregs[j]) fprintf(file, "b%s R%d\n" , std::bitset<32>(state.debugregs[j]).to_string().c_str(), j);
+			if (i == 0 || state.debugregs[j] != laststate.debugregs[j]) fprintf(file, "b%s R%d\n", std::bitset<32>(state.debugregs[j]).to_string().c_str(), j);
 		}
 		if (i == 0 || state.opcode != laststate.opcode)
 		{
@@ -305,7 +319,7 @@ void Cpu::reset()
 	for (int i = 0; i < 18; i++)
 	{
 		regs[i] = 0;
-		for (int j= 0; j < 6; j++)
+		for (int j = 0; j < 6; j++)
 		{
 			regbanks[j][i] = 0;
 		}
@@ -317,6 +331,7 @@ void Cpu::reset()
 
 	halt = false;
 	stop = false;
+	flushPipeline = true;
 
 	totalticks = 0;
 	commands = 0;
@@ -381,7 +396,7 @@ void Cpu::nextInstr()
 		{
 			traclist_ptr = 0;
 			//runmoretrace = 300001;
-			runmoretrace = 1000000;
+			runmoretrace = 300000;
 		}
 
 		if (irpnext)
@@ -416,8 +431,7 @@ void Cpu::nextInstr()
 		//	throw new Exception("Wrong PC with last bit set");
 		//}
 
-		//if (traclist_ptr == 422) - game entry
-		if (traclist_ptr == 29800)
+		if (traclist_ptr == 271505)
 		{
 			int xx = 0;
 		}
@@ -432,6 +446,7 @@ void Cpu::nextInstr()
 	newticks = 0;
 
 	PC_old = PC;
+	old_thumbmode = thumbmode;
 
 	if (irpnext && !IRQ_disable)
 	{
@@ -516,6 +531,11 @@ void Cpu::nextInstr()
 	{
 		newticks -= 1;
 	}
+
+	if (old_thumbmode != thumbmode)
+	{
+		flushPipeline = true;
+	}
 }
 
 void Cpu::interrupt()
@@ -525,11 +545,25 @@ void Cpu::interrupt()
 	PC = 0x18;
 	IRQ_disable = true;
 	thumbmode = false;
+	flushPipeline = true;
 }
 
 void Cpu::thumb_command()
 {
-	UInt16 asmcmd = (UInt16)Memory.read_word(PC);
+	UInt16 asmcmd;
+	if (flushPipeline)
+	{
+		asmcmd = (UInt16)Memory.read_word(PC);
+		instr1 = (UInt16)Memory.read_word(PC + 2);
+		instr2 = (UInt16)Memory.read_word(PC + 4);
+		flushPipeline = false;
+	}
+	else
+	{
+		asmcmd = instr1;
+		instr1 = instr2;
+		instr2 = (UInt16)Memory.read_word(PC + 4);
+	}
 
 	Byte opcode_1513 = (Byte)((asmcmd >> 13) & 0x7); // bit 15..13
 
@@ -645,6 +679,10 @@ void Cpu::thumb_command()
 		break;
 	}
 
+	if (PC_old != PC)
+	{
+		flushPipeline = true;
+	}
 	PC += 2;
 }
 
@@ -1152,7 +1190,20 @@ void Cpu::move_shifted_register(byte op, byte offset5, byte Rs, byte Rd)
 
 void Cpu::arm_command()
 {
-	UInt32 asmcmd = Memory.read_dword(PC);
+	UInt32 asmcmd;
+	if (flushPipeline)
+	{
+		asmcmd = Memory.read_dword(PC);
+		instr1 = Memory.read_dword(PC + 4);
+		instr2 = Memory.read_dword(PC + 8);
+		flushPipeline = false;
+	}
+	else
+	{
+		asmcmd = instr1;
+		instr1 = instr2;
+		instr2 = Memory.read_dword(PC + 8);
+	}
 
 	byte cond = (byte)(asmcmd >> 28);
 	bool execute = false;
@@ -1303,13 +1354,16 @@ void Cpu::arm_command()
 		}
 	}
 
+	if (PC_old != PC)
+	{
+		flushPipeline = true;
+	}
 	PC += 4;
 }
 
 void Cpu::software_interrupt()
 {
 	uint oldPC = PC;
-	bool old_thumb = thumbmode;
 	bool old_IRQ_disable = IRQ_disable;
 
 	CPUSwitchMode(CPUMODES::SUPERVISOR, true);
@@ -1317,7 +1371,7 @@ void Cpu::software_interrupt()
 	{
 		regs[17] |= 0x80;
 	}
-	if (old_thumb) // only for SWI, not for normal interrupt...
+	if (old_thumbmode) // only for SWI, not for normal interrupt...
 	{
 		regs[14] = PC + 2;
 	}
@@ -1328,7 +1382,7 @@ void Cpu::software_interrupt()
 
 	BusTiming.busPrefetchCount = 0;
 
-	if (old_thumb)
+	if (old_thumbmode)
 	{
 		PC = 6; // will be 8 after end of thumb command
 		newticks = 3;
@@ -1851,7 +1905,6 @@ void Cpu::halfword_data_transfer(byte opcode, byte opcode_low, bool load_store, 
 
 void Cpu::branch_and_exchange(byte reg)
 {
-	bool old_thumbmode = thumbmode;
 	BusTiming.busPrefetchCount = 0;
 	thumbmode = (regs[reg] & 1) == 1;
 	if (thumbmode)
@@ -2448,6 +2501,7 @@ void Cpu::data_processing(bool imm, byte opcode, bool s_updateflags, byte Rn_op1
 	UInt32 old_cpsr = get_CPSR();
 
 	bool writeback = false;
+	bool modeswitchbug = false;
 	switch (opcode)
 	{
 	case 0x0: alu_and(Rdest, op1_val, op2_val, s_updateflags, true, shiftercarry); writeback = true; break;             // AND 0000 operand1 AND operand2
@@ -2458,21 +2512,24 @@ void Cpu::data_processing(bool imm, byte opcode, bool s_updateflags, byte Rn_op1
 	case 0x5: alu_add_withcarry(Rdest, op1_val, op2_val, s_updateflags, Flag_Carry); writeback = true; break;           // ADC 0101 operand1 + operand2 + carry
 	case 0x6: alu_sub_withcarry(Rdest, op1_val, op2_val, s_updateflags, Flag_Carry); writeback = true; break;           // SBC 0110 operand1 - operand2 + carry - 1
 	case 0x7: alu_sub_withcarry(Rdest, op2_val, op1_val, s_updateflags, Flag_Carry); writeback = true; break;           // RSC 0111 operand2 - operand1 + carry - 1
-	case 0x8: alu_and(Rdest, op1_val, op2_val, s_updateflags, false, shiftercarry); writeback = true; break;            // TST 1000 as AND, but result is not written // TODO: in case of modeswitch there is no pipeline flush!
-	case 0x9: alu_xor(Rdest, op1_val, op2_val, s_updateflags, false, shiftercarry); writeback = true; break;            // TEQ 1001 as EOR, but result is not written // TODO: in case of modeswitch there is no pipeline flush!
-	case 0xA: alu_sub(Rdest, op1_val, op2_val, s_updateflags, false); writeback = true; break;                          // CMP 1010 as SUB, but result is not written // TODO: in case of modeswitch there is no pipeline flush!
-	case 0xB: alu_add(Rdest, op1_val, op2_val, s_updateflags, false); writeback = true; break;                          // CMN 1011 as ADD, but result is not written // TODO: in case of modeswitch there is no pipeline flush!
+	case 0x8: alu_and(Rdest, op1_val, op2_val, s_updateflags, false, shiftercarry); modeswitchbug = true; break;        // TST 1000 as AND, but result is not written, in case of modeswitch there is no pipeline flush!
+	case 0x9: alu_xor(Rdest, op1_val, op2_val, s_updateflags, false, shiftercarry); modeswitchbug = true; break;        // TEQ 1001 as EOR, but result is not written, in case of modeswitch there is no pipeline flush!
+	case 0xA: alu_sub(Rdest, op1_val, op2_val, s_updateflags, false); modeswitchbug = true; break;                      // CMP 1010 as SUB, but result is not written, in case of modeswitch there is no pipeline flush!
+	case 0xB: alu_add(Rdest, op1_val, op2_val, s_updateflags, false); modeswitchbug = true; break;                      // CMN 1011 as ADD, but result is not written, in case of modeswitch there is no pipeline flush!
 	case 0xC: alu_or(Rdest, op1_val, op2_val, s_updateflags, shiftercarry); writeback = true; break;                    // ORR 1100 operand1 OR operand2
 	case 0xD: alu_mov(Rdest, op2_val, s_updateflags, shiftercarry); writeback = true; break;                            // MOV 1101 operand2(operand1 is ignored)
 	case 0xE: alu_and_not(Rdest, op1_val, op2_val, s_updateflags, shiftercarry); writeback = true; break;               // BIC 1110 operand1 AND NOT operand2(Bit clear)
 	case 0xF: alu_mov_not(Rdest, op2_val, s_updateflags, shiftercarry); writeback = true; break;                        // MVN 1111 NOT operand2(operand1 is ignored)
 	}
 
-	if (writeback)
+	if (writeback || modeswitchbug)
 	{
 		if (Rdest == 15)
 		{
-			PC = (UInt32)regs[15];
+			if (writeback)
+			{
+				PC = (UInt32)regs[15];
+			}
 			newticks = BusTiming.codeTicksAccessSeq32(PC) + 1;
 			newticks = (newticks * 2) + BusTiming.codeTicksAccess32(PC) + 1;
 			if (s_updateflags) // leave IRP
@@ -2488,7 +2545,10 @@ void Cpu::data_processing(bool imm, byte opcode, bool s_updateflags, byte Rn_op1
 					CPUSwitchMode(get_mode_from_value(value), false);
 					set_CPSR(value);
 				}
-				PC -= 4;
+				if (writeback)
+				{
+					PC -= 4;
+				}
 				if (thumbmode)
 				{
 					PC &= 0xFFFFFFFE;
@@ -2501,8 +2561,11 @@ void Cpu::data_processing(bool imm, byte opcode, bool s_updateflags, byte Rn_op1
 				}
 				return;
 			}
-			PC &= 0xFFFFFFFC;
-			PC -= 4;
+			if (writeback)
+			{
+				PC &= 0xFFFFFFFC;
+				PC -= 4;
+			}
 		}
 	}
 }

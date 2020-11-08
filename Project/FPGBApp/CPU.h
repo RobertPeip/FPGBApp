@@ -63,6 +63,7 @@ class Cpu
 {
 public:
 	bool thumbmode;
+	bool old_thumbmode;
 
 	bool output_debug = true;
 
@@ -86,6 +87,9 @@ public:
 
 	bool halt;
 	bool stop;
+	bool flushPipeline;
+	UInt32 instr1;
+	UInt32 instr2;
 
 	UInt32 regbanks[6][18];
 

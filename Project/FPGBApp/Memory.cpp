@@ -217,7 +217,7 @@ byte MEMORY::read_byte(UInt32 address)
 		{
 			for (int i = 0; i < 4; i++)
 			{
-				biosProtected[i] = GBRom[((address + 8) & 0x3FFC) + i];
+				biosProtected[i] = GBRom[(address & 0x3FFC) + i];
 			}
 			return GBRom[address & 0x3FFF];
 		}
@@ -350,7 +350,7 @@ UInt32 MEMORY::read_word(UInt32 address)
 		{
 			for (int i = 0; i < 4; i++)
 			{
-				biosProtected[i] = GBRom[((address + 8) & 0x3FFC) + i];
+				biosProtected[i] = GBRom[(address & 0x3FFC) + i];
 			}
 			value = *(UInt16*)&GBRom[address & 0x3FFE];
 		}
@@ -490,7 +490,7 @@ UInt32 MEMORY::read_dword(UInt32 address)
 		{
 			for (int i = 0; i < 4; i++)
 			{
-				biosProtected[i] = GBRom[((address + 8) & 0x3FFC) + i];
+				biosProtected[i] = GBRom[(address & 0x3FFC) + i];
 			}
 			value = *(UInt32*)&GBRom[address & 0x3FFC];
 		}

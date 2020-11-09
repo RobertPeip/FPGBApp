@@ -30,6 +30,7 @@ SingleTimer::SingleTimer(UInt16 irpmask, GBReg CNT_L, GBReg Prescaler, GBReg Cou
 	retval = 0;
 	prescalevalue = 0;
 	countup = false;
+	preaddcount = 0;
 }
 
 void TIMER::reset()
@@ -53,7 +54,7 @@ void TIMER::set_settings(int index)
 	}
 	else if (timers[index].on && !timers[index].Timer_Start_Stop.on() && !gameboy.loading_state)
 	{
-		timers[index].stopnow = true;
+		//timers[index].stopnow = true;
 	}
 	timers[index].on = timers[index].Timer_Start_Stop.on();
 	if (timers[index].on)
@@ -70,20 +71,37 @@ void TIMER::set_settings(int index)
 	}
 }
 
-void TIMER::work()
+void TIMER::work(bool preadd)
 {
 	// must save here, as dma may reset to zero
-	int cputicks = CPU.newticks;
+	int cputicks_save = CPU.newticks;
 
 	for (int i = 0; i < 4; i++)
 	{
+		int cputicks = cputicks_save;
+
+		if (preadd)
+		{
+			timers[i].preaddcount = cputicks_save;
+		}
+		else if (timers[i].preaddcount > 0)
+		{
+			cputicks -= timers[i].preaddcount;
+			timers[i].preaddcount = 0;
+		}
+
 		if (timers[i].startnow)
 		{
 			timers[i].startnow = false;
 			timers[i].value = timers[i].reload;
 			timers[i].retval = (UInt16)timers[i].value;
+			if (cputicks >= 2)
+			{
+				cputicks -= 2;
+			}
 		}
-		else if (timers[i].on || timers[i].stopnow)
+
+		if (timers[i].on || timers[i].stopnow)
 		{
 			timers[i].stopnow = false;
 

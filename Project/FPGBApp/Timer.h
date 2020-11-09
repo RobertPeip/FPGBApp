@@ -24,6 +24,8 @@ public:
 	bool countup;
 	int prescale;
 
+	int preaddcount;
+
 	UInt16 retval;
 
 	SingleTimer();
@@ -38,6 +40,6 @@ public:
 	void reset();
 	void set_reload(int index);
 	void set_settings(int index);
-	void work();
+	void work(bool preadd);
 };
 extern TIMER Timer;

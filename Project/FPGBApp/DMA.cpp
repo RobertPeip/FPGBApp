@@ -7,6 +7,7 @@ using namespace std;
 #include "CPU.h"
 #include "Memory.h"
 #include "BusTiming.h"
+#include "Timer.h"
 
 Dma DMA;
 
@@ -210,6 +211,16 @@ void Dma::work()
 
 				dma_active = true;
 
+				// timer hack -> must count up before requested
+				if (DMAs[i].first)
+				{
+					CPU.newticks += 2;
+				}
+				if (sm == 0x4 && (DMAs[i].addr_source & 0xFFF) >= GBRegs.Sect_timer.TM0CNT_L.address && (DMAs[i].addr_source & 0xFFF) <= GBRegs.Sect_timer.TM3CNT_L.address)
+				{
+					Timer.work(true);
+				}
+
 				if (DMAs[i].dMA_Transfer_Type)
 				{
 					UInt32 value;
@@ -274,13 +285,17 @@ void Dma::work()
 				{
 					if (DMAs[i].dMA_Transfer_Type)
 					{
-						ticks = 4 + BusTiming.memoryWait32[sm & 15] + BusTiming.memoryWaitSeq32[dm & 15];
+						ticks = 2 + BusTiming.memoryWait32[sm & 15] + BusTiming.memoryWaitSeq32[dm & 15];
 					}
 					else
 					{
-						ticks = 4 + BusTiming.memoryWait[sm & 15] + BusTiming.memoryWaitSeq[dm & 15];
+						ticks = 2 + BusTiming.memoryWait[sm & 15] + BusTiming.memoryWaitSeq[dm & 15];
 					}
 					DMAs[i].first = false;
+					if ((DMAs[i].addr_source < 0x08000000) && (DMAs[i].addr_target >= 0x08000000))
+					{
+						ticks += 2;
+					}
 				}
 				else
 				{

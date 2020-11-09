@@ -65,7 +65,7 @@ void Gameboy::run()
 		{
 			Sound.soundGenerator.fill();
 		}
-		Timer.work();
+		Timer.work(false);
 		Serial.work();
 
 		cycles = cycles + CPU.newticks;

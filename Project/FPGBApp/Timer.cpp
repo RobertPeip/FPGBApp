@@ -135,7 +135,7 @@ void TIMER::work(bool preadd)
 				if (i < 3 && timers[i + 1].countup)
 				{
 					timers[i + 1].value++;
-					timers[i + 1].retval = (UInt16)timers[i].value;
+					timers[i + 1].retval = (UInt16)timers[i + 1].value;
 				}
 
 				if (timers[i].irp_on)

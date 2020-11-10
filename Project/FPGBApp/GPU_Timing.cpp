@@ -121,7 +121,7 @@ void GPUTiming::work()
 					gpustate = GPUState::VBLANK;
 					if (line == 227)
 					{
-						//GBRegs.Sect_display.DISPSTAT_V_Blank_flag.write(0);
+						GBRegs.Sect_display.DISPSTAT_V_Blank_flag.write(0);
 					}
 				}
 				old_dispstat = GBRegs.data[4];

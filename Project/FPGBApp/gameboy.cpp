@@ -34,7 +34,7 @@ void Gameboy::reset()
 	CPU.reset();
 	GPU_Timing.reset();
 	Sound.reset();
-	Joypad.set_reg();
+	Joypad.set_reg(false);
 	Timer.reset();
 	DMA.reset();
 	SoundDMA.reset();
@@ -73,7 +73,7 @@ void Gameboy::run()
 		checkcount++;
 		if (checkcount == 0)
 		{
-			Joypad.set_reg();
+			Joypad.set_reg(false);
 
 			Memory.GameRAMSnapshot();
 

@@ -21,7 +21,7 @@ public:
 
 	UInt16 oldvalue;
 
-	void set_reg();
+	void set_reg(bool forceIRQcheck);
 	void check_irp();
 
 private:

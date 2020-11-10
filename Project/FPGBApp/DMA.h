@@ -68,7 +68,7 @@ public:
 
 	void reset();
 	void set_settings(int index);
-	void check_run(int index);
+	void check_run(int index, bool fromGPU);
 	void work();
 	bool request_audio(uint audioindex);
 };

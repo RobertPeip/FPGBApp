@@ -141,6 +141,20 @@ void GPUTiming::nextline()
 	}
 	GBRegs.Sect_display.VCOUNT.write(line);
 
+	if (line == 162)
+	{
+		if (DMA.DMAs[3].dMA_Start_Timing == 3)
+		{
+			DMA.DMAs[3].dMA_Enable = false;
+			DMA.DMAs[3].DMA_Enable.write(0);
+			DMA.DMAs[3].waiting = false;
+		}
+	}
+	else if(line >= 2 && DMA.DMAs[3].waiting)
+	{
+		DMA.check_run(3, true);
+	}
+
 	if (line == GBRegs.Sect_display.DISPSTAT_V_Count_Setting.read())
 	{
 		if (GBRegs.Sect_display.DISPSTAT_V_Counter_IRQ_Enable.on())

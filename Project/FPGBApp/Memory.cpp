@@ -881,7 +881,8 @@ void MEMORY::write_gbreg(UInt32 adr, UInt32 value, bool dwaccess)
 	else if (adr == GBRegs.Sect_dma.DMA2CNT_H.address + 2) { DMA.set_settings(2); }
 	else if (adr == GBRegs.Sect_dma.DMA3CNT_H.address + 2) { DMA.set_settings(3); }
 
-	else if (adr == GBRegs.Sect_keypad.KEYINPUT.address) { Joypad.set_reg(); }
+	else if (adr == GBRegs.Sect_keypad.KEYINPUT.address) { Joypad.set_reg(true); }
+	else if (adr == GBRegs.Sect_keypad.KEYCNT.address) { Joypad.set_reg(true); }
 
 	else if (adr == GBRegs.Sect_system.IME.address) { IRP.update_IME(*(UInt16*)&GBRegs.data[GBRegs.Sect_system.IME.address]); }
 	else if (adr == GBRegs.Sect_system.IE.address) { IRP.update_IE(); }

@@ -8,6 +8,7 @@ using namespace std;
 #include "Memory.h"
 #include "BusTiming.h"
 #include "Timer.h"
+#include "GPU_Timing.h"
 
 Dma DMA;
 
@@ -140,7 +141,7 @@ void Dma::set_settings(int index)
 			}
 		}
 		DMAs[index].waiting = true;
-		check_run(index);
+		check_run(index, false);
 
 		if (DMAs[index].dMA_Start_Timing == 3)
 		{
@@ -153,23 +154,17 @@ void Dma::set_settings(int index)
 	}
 }
 
-void Dma::check_run(int index)
+void Dma::check_run(int index, bool fromGPU)
 {
-	if (DMAs[index].dMA_Start_Timing == 0 ||
-		DMAs[index].dMA_Start_Timing == 1 && new_vblank ||
-		DMAs[index].dMA_Start_Timing == 2 && new_hblank)
+	if (!fromGPU && DMAs[index].dMA_Start_Timing == 0 ||
+		!fromGPU && DMAs[index].dMA_Start_Timing == 1 && new_vblank ||
+		!fromGPU && DMAs[index].dMA_Start_Timing == 2 && new_hblank ||
+		 fromGPU && DMAs[index].dMA_Start_Timing == 3 && index == 3)
 	{
 		DMAs[index].waitTicks = 3;
 		DMAs[index].waiting = false;
 		DMAs[index].first = true;
 		DMAs[index].fullcount = DMAs[index].count;
-	}
-	else if (DMAs[index].dMA_Start_Timing == 3)
-	{
-		if (index == 3)
-		{
-			//throw new Exception("video dma not implemented");
-		}
 	}
 }
 
@@ -184,7 +179,7 @@ void Dma::work()
 		{
 			if (DMAs[i].waiting)
 			{
-				check_run(i);
+				check_run(i, false);
 			}
 
 			if (DMAs[i].waitTicks > 0)

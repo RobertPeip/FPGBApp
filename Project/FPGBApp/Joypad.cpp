@@ -6,7 +6,7 @@
 
 JOYPAD Joypad;
 
-void JOYPAD::set_reg()
+void JOYPAD::set_reg(bool forceIRQcheck)
 {
 	oldvalue = value;
 	value = 0x00;
@@ -27,7 +27,7 @@ void JOYPAD::set_reg()
 	if (KeyAToggle && timeu64 % 50 < 25) { value &= 0x3FE; }
 	if (KeyBToggle && timeu64 % 50 < 25) { value &= 0x3FD; }
 
-	if (value != oldvalue)
+	if (value != oldvalue || forceIRQcheck)
 	{
 		GBRegs.Sect_keypad.KEYINPUT.write(value);
 		check_irp();
